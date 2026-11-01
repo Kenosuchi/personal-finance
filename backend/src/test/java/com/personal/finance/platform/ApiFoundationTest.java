@@ -12,10 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -25,14 +24,19 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.personal.finance.platform.error.GlobalExceptionHandler;
 import com.personal.finance.platform.web.TraceContextFilter;
+import com.personal.finance.platform.web.TraceFilterConfiguration;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 
-@SpringBootTest(properties = "debug=false")
-@AutoConfigureMockMvc
-@Import(ApiFoundationTest.TestOnlyController.class)
+@WebMvcTest(properties = "debug=false")
+@Import({
+    ApiFoundationTest.TestOnlyController.class,
+    GlobalExceptionHandler.class,
+    TraceFilterConfiguration.class
+})
 @ExtendWith(OutputCaptureExtension.class)
 class ApiFoundationTest {
 

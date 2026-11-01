@@ -1,9 +1,10 @@
 # Personal Finance backend
 
 This directory contains the single Spring Boot application for the Personal Finance project.
-R0-002 establishes only the build, HTTP error, request tracing, structured logging, and
-money/date wire-contract foundations. Persistence, security, health probes, and financial
-workflows are intentionally deferred to their later R0/R1 tickets.
+R0-002 established the HTTP, error, logging, and money/date wire-contract foundations. R0-004
+establishes the MySQL schema, Flyway migrations, minimal JPA mappings, credential separation,
+and real-MySQL integration evidence. Financial APIs,
+repositories, services, and CRUD workflows remain deferred to R1.
 
 ## Toolchain and commands
 
@@ -14,26 +15,89 @@ workflows are intentionally deferred to their later R0/R1 tickets.
 The Maven distribution SHA-512 was checked against Apache's published checksum. The SHA-256
 of that same archive is pinned as `distributionSha256Sum` for wrapper verification.
 
-Run the focused backend checks:
+Run the focused non-database checks without Docker:
+
+```bash
+./mvnw -Dtest=ApiFoundationTest,FinancialJsonContractTest,DatabaseConnectionConfigurationTest test
+```
+
+Run all tests, including the MySQL 8.4.11 Testcontainers suite:
 
 ```bash
 ./mvnw test
 ```
 
-Run the clean build and produce the executable JAR:
+Run the clean build and produce the executable JAR. Both complete commands require a working
+Docker environment and fail rather than silently skipping the MySQL evidence:
 
 ```bash
 ./mvnw clean verify
 ```
 
-Neither command requires Docker or a database for R0-002.
+The integration suite proves empty-schema migration, repeat startup, Flyway checksum failure,
+Hibernate mapping failure, schema constraints, runtime-versus-migration privileges, and exact
+whole-VND/date persistence. Test data is synthetic and the container lifecycle covers every
+Spring context that uses it.
+
+## Local database and application startup
+
+The backend and integration tests use the same MySQL patch, 8.4.11. Create an ignored local
+Compose environment file, replace every placeholder password, and start MySQL from the
+repository root:
+
+```bash
+cp infra/.env.example infra/.env
+docker compose --env-file infra/.env -f infra/compose.yml up -d mysql
+docker compose --env-file infra/.env -f infra/compose.yml ps
+```
+
+The initialization script creates the runtime and migration users only when MySQL initializes
+an empty data directory. Changing `infra/.env` does not re-provision an existing `mysql_data`
+volume; intentionally provision the retained database as an administrator or start with a new
+local volume.
+
+For direct host development, MySQL is published only on `127.0.0.1:3306`. The application
+requires separate runtime and migration settings:
+
+- `FINANCE_DATABASE_RUNTIME_URL`
+- `FINANCE_DATABASE_RUNTIME_USERNAME`
+- `FINANCE_DATABASE_RUNTIME_PASSWORD`
+- `FINANCE_DATABASE_MIGRATION_URL`
+- `FINANCE_DATABASE_MIGRATION_USERNAME`
+- `FINANCE_DATABASE_MIGRATION_PASSWORD`
+
+Spring Boot does not automatically load `.env.local`. After creating the ignored
+`backend/.env.local` file with the six settings above, load it into the shell before starting
+the backend. Use URLs such as
+`jdbc:mysql://127.0.0.1:3306/finance_management?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true`
+and use the same runtime/migration usernames and passwords provisioned by Compose:
+
+```bash
+cd backend
+set -a
+. ./.env.local
+set +a
+./mvnw spring-boot:run
+```
+
+Do not commit `.env` or `.env.local`, print their values, or place credentials in JDBC URLs. The
+runtime account is limited to `SELECT`, `INSERT`, `UPDATE`, and `DELETE`. The migration account
+owns the schema changes and Flyway history. Database/user creation and grants belong to a third,
+provisioning-only administrative identity that the application never receives. Using the same
+account for runtime and migration does not satisfy the R0-004 privilege contract.
+
+Flyway is the only schema-change mechanism. Hibernate uses `ddl-auto=validate`, Spring SQL
+initialization is disabled, and Flyway clean is disabled. Applied migrations are immutable;
+correct an unapplied local migration before acceptance, but add a new migration for any change
+after it has been applied to a retained environment.
 
 ## Package ownership
 
 - `com.personal.finance.platform.error` owns the HTTP Problem Details mapping.
 - `com.personal.finance.platform.web` owns bounded request tracing and request completion logs.
-- Future category, transaction, and reporting packages own their respective business behavior,
-  but are not created until a ticket introduces real implementation.
+- `com.personal.finance.categories` owns category persistence and future category behavior.
+- `com.personal.finance.transactions` owns transaction persistence and future transaction
+  behavior.
 
 Do not expose persistence entities as API DTOs. Do not create generic `common`, `shared`, or
 placeholder controller/service/repository packages.
@@ -91,3 +155,29 @@ diagnostics.
 
 R0-002 tests these rules with test-only fixtures. No production financial DTO or demonstration
 endpoint is introduced by this ticket.
+
+## Schema and application validation responsibilities
+
+The schema provides the final integrity boundary for supported enum names, whole values in the
+approved positive range after SQL conversion, required expense descriptions, category
+references, required nullability, and uniqueness of the supplied `normalized_name` within a
+category type. It also prevents category deletion while transaction history refers to it. The
+application will still validate these rules in R1 to return useful API errors instead of
+exposing database failures.
+
+The following rules cannot be truthfully attributed to `DECIMAL`, `DATE`, or the category
+foreign key and remain application responsibilities:
+
+- Reject fractional amount input before conversion or storage; `DECIMAL(19,0)` must not be
+  relied on to reject rather than round a fractional value.
+- Reject future transaction dates using the approved reporting timezone.
+- Trim, normalize to Unicode NFC, lowercase with `Locale.ROOT`, preserve accents, and enforce
+  the approved 1–80-character category-name convention before writing `normalized_name`; the
+  schema compares the supplied normalized value with a binary collation but does not calculate
+  it.
+- Verify that a selected category is active and has the same income/expense type as the
+  transaction inside the write transaction.
+
+Frontend validation is a usability aid, not an integrity boundary. R0-004 does not claim full
+financial correctness or implement category/transaction workflows. Normal startup contains no
+seeded user categories.

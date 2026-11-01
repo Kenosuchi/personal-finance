@@ -1,0 +1,30 @@
+services:
+  mysql:
+    image: mysql:8.4.11
+    container_name: finance-management-mysql
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${FINANCE_DATABASE_ADMIN_PASSWORD:?set FINANCE_DATABASE_ADMIN_PASSWORD}
+      MYSQL_DATABASE: ${FINANCE_DATABASE_NAME:-finance_management}
+      FINANCE_DATABASE_RUNTIME_USERNAME: ${FINANCE_DATABASE_RUNTIME_USERNAME:?set FINANCE_DATABASE_RUNTIME_USERNAME}
+      FINANCE_DATABASE_RUNTIME_PASSWORD: ${FINANCE_DATABASE_RUNTIME_PASSWORD:?set FINANCE_DATABASE_RUNTIME_PASSWORD}
+      FINANCE_DATABASE_MIGRATION_USERNAME: ${FINANCE_DATABASE_MIGRATION_USERNAME:?set FINANCE_DATABASE_MIGRATION_USERNAME}
+      FINANCE_DATABASE_MIGRATION_PASSWORD: ${FINANCE_DATABASE_MIGRATION_PASSWORD:?set FINANCE_DATABASE_MIGRATION_PASSWORD}
+
+    ports:
+      - "127.0.0.1:3306:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h localhost -u root --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  mysql_data:

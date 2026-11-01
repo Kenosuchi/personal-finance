@@ -7,14 +7,12 @@ import java.time.LocalDate;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.json.JsonTest;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-@SpringBootTest(
-    webEnvironment = SpringBootTest.WebEnvironment.NONE,
-    properties = "debug=false")
+@JsonTest
 class FinancialJsonContractTest {
 
   @Autowired

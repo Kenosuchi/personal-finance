@@ -1,6 +1,26 @@
 spring:
   application:
     name: personal-finance-api
+  datasource:
+    hikari:
+      connection-init-sql: SET time_zone = '+00:00'
+  flyway:
+    enabled: true
+    validate-on-migrate: true
+    validate-migration-naming: true
+    clean-disabled: true
+    create-schemas: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  sql:
+    init:
+      mode: never
 
 logging:
   level:
