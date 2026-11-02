@@ -2,10 +2,16 @@ spring:
   application:
     name: personal-finance-api
   datasource:
+    url: ${FINANCE_DATABASE_RUNTIME_URL}
+    username: ${FINANCE_DATABASE_RUNTIME_USERNAME}
+    password: ${FINANCE_DATABASE_RUNTIME_PASSWORD}
     hikari:
       connection-init-sql: SET time_zone = '+00:00'
   flyway:
     enabled: true
+    url: ${FINANCE_DATABASE_MIGRATION_URL}
+    user: ${FINANCE_DATABASE_MIGRATION_USERNAME}
+    password: ${FINANCE_DATABASE_MIGRATION_PASSWORD}
     validate-on-migrate: true
     validate-migration-naming: true
     clean-disabled: true

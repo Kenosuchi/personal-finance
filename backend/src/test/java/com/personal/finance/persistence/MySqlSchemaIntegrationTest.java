@@ -65,12 +65,12 @@ class MySqlSchemaIntegrationTest {
 
   @DynamicPropertySource
   static void databaseProperties(DynamicPropertyRegistry registry) {
-    registry.add("finance.database.runtime.url", MySqlSchemaIntegrationTest::jdbcUrl);
-    registry.add("finance.database.runtime.username", () -> RUNTIME_USERNAME);
-    registry.add("finance.database.runtime.password", () -> RUNTIME_PASSWORD);
-    registry.add("finance.database.migration.url", MySqlSchemaIntegrationTest::jdbcUrl);
-    registry.add("finance.database.migration.username", () -> MIGRATION_USERNAME);
-    registry.add("finance.database.migration.password", () -> MIGRATION_PASSWORD);
+    registry.add("spring.datasource.url", MySqlSchemaIntegrationTest::jdbcUrl);
+    registry.add("spring.datasource.username", () -> RUNTIME_USERNAME);
+    registry.add("spring.datasource.password", () -> RUNTIME_PASSWORD);
+    registry.add("spring.flyway.url", MySqlSchemaIntegrationTest::jdbcUrl);
+    registry.add("spring.flyway.user", () -> MIGRATION_USERNAME);
+    registry.add("spring.flyway.password", () -> MIGRATION_PASSWORD);
   }
 
   @Autowired
@@ -386,12 +386,12 @@ class MySqlSchemaIntegrationTest {
     return Map.of(
         "spring.main.web-application-type", "none",
         "spring.main.banner-mode", "off",
-        "finance.database.runtime.url", jdbcUrl(),
-        "finance.database.runtime.username", RUNTIME_USERNAME,
-        "finance.database.runtime.password", RUNTIME_PASSWORD,
-        "finance.database.migration.url", jdbcUrl(),
-        "finance.database.migration.username", MIGRATION_USERNAME,
-        "finance.database.migration.password", MIGRATION_PASSWORD);
+        "FINANCE_DATABASE_RUNTIME_URL", jdbcUrl(),
+        "FINANCE_DATABASE_RUNTIME_USERNAME", RUNTIME_USERNAME,
+        "FINANCE_DATABASE_RUNTIME_PASSWORD", RUNTIME_PASSWORD,
+        "FINANCE_DATABASE_MIGRATION_URL", jdbcUrl(),
+        "FINANCE_DATABASE_MIGRATION_USERNAME", MIGRATION_USERNAME,
+        "FINANCE_DATABASE_MIGRATION_PASSWORD", MIGRATION_PASSWORD);
   }
 
   private static void provisionDatabaseUsers() {

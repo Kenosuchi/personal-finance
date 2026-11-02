@@ -18,7 +18,7 @@ of that same archive is pinned as `distributionSha256Sum` for wrapper verificati
 Run the focused non-database checks without Docker:
 
 ```bash
-./mvnw -Dtest=ApiFoundationTest,FinancialJsonContractTest,DatabaseConnectionConfigurationTest test
+./mvnw -Dtest=ApiFoundationTest,FinancialJsonContractTest,DatabaseEnvironmentConfigurationTest test
 ```
 
 Run all tests, including the MySQL 8.4.11 Testcontainers suite:
