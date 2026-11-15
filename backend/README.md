@@ -18,7 +18,7 @@ of that same archive is pinned as `distributionSha256Sum` for wrapper verificati
 Run the focused non-database checks without Docker:
 
 ```bash
-./mvnw -Dtest=ApiFoundationTest,FinancialJsonContractTest,DatabaseEnvironmentConfigurationTest test
+./mvnw -Dtest=ApiFoundationTest,SecurityPolicyTest,FinancialJsonContractTest,DatabaseEnvironmentConfigurationTest test
 ```
 
 Run all tests, including the MySQL 8.4.11 Testcontainers suite:
@@ -90,6 +90,33 @@ Flyway is the only schema-change mechanism. Hibernate uses `ddl-auto=validate`, 
 initialization is disabled, and Flyway clean is disabled. Applied migrations are immutable;
 correct an unapplied local migration before acceptance, but add a new migration for any change
 after it has been applied to a retained environment.
+
+## Local security and CSRF contract
+
+R0 uses anonymous local access without a login, but still applies a deny-by-default endpoint
+policy and CSRF protection. The runtime allowlist is:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/csrf` | Materialize the Angular-compatible CSRF cookie |
+| `GET` | `/actuator/health/liveness` | Reserved for the R0-006 liveness probe |
+| `GET` | `/actuator/health/readiness` | Reserved for the R0-006 readiness probe |
+
+Every other method/path combination is denied until its owning ticket explicitly adds it. The
+bootstrap response sets a JavaScript-readable `XSRF-TOKEN` cookie; Angular sends its value as
+`X-XSRF-TOKEN` on relative unsafe requests. Tokens and request headers must not be logged.
+
+Unsafe requests must contain exactly one `Origin` header equal to
+`finance.security.allowed-origin`. Direct development defaults to `http://localhost:4200` and
+can be overridden with `FINANCE_SECURITY_ALLOWED_ORIGIN`. R0-007 must set that value to the exact
+published frontend origin, preserve the same-origin proxy contract, bind the frontend to
+loopback, and reject unapproved Host values. Do not replace the exact origin with a wildcard or
+enable permissive CORS.
+
+Missing or invalid CSRF tokens return a `CSRF_REJECTED` 403 Problem Details response. Origin and
+endpoint-policy failures return `ACCESS_DENIED`. Both include the request `traceId`. The unsafe
+handler used to prove this behavior exists only in test sources and is absent from the runtime
+artifact.
 
 ## Package ownership
 

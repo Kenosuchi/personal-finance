@@ -26,6 +26,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -37,15 +38,17 @@ import com.personal.finance.platform.web.TraceContextFilter;
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
   private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-
   private static final String TRACE_ATTRIBUTE = TraceContextFilter.REQUEST_ATTRIBUTE;
-
   private static final URI PROBLEM_TYPE = URI.create("about:blank");
-
   // Reject field paths that could expose arbitrary map keys or user text.
   private static final Pattern SAFE_FIELD = Pattern.compile(
       "[A-Za-z][A-Za-z0-9_]*(?:\\[[0-9]{1,5}\\])?"
           + "(?:\\.[A-Za-z][A-Za-z0-9_]*(?:\\[[0-9]{1,5}\\])?)*");
+  private final ProblemDetailFactory problemDetailFactory;
+
+  public GlobalExceptionHandler(ProblemDetailFactory problemDetailFactory) {
+    this.problemDetailFactory = problemDetailFactory;
+  }
 
   @Override
   protected ResponseEntity<Object> handleExceptionInternal(
@@ -54,19 +57,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
       HttpHeaders headers,
       HttpStatusCode status,
       WebRequest request) {
-
     // Ignore framework-provided bodies: they may contain unsafe details.
     ErrorInfo error = classify(ex, status);
-
-    ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-        status, error.detail());
-
-    problem.setTitle(titleFor(status));
-    problem.setProperty("code", error.code());
-
+    URI instance = request instanceof ServletWebRequest servletRequest
+        ? URI.create(servletRequest.getRequest().getRequestURI())
+        : null;
+    ProblemDetail problem = problemDetailFactory.create(
+        status,
+        PROBLEM_TYPE,
+        titleFor(status),
+        error.detail(),
+        error.code(),
+        instance,
+        resolveTraceId(request));
     if (status.value() == 400) {
       List<FieldIssue> issues = collectFieldErrors(ex);
-
       if (!issues.isEmpty()) {
         problem.setProperty("fieldErrors", issues);
       }

@@ -12,11 +12,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,16 +31,21 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.personal.finance.platform.error.GlobalExceptionHandler;
+import com.personal.finance.platform.error.ProblemDetailFactory;
 import com.personal.finance.platform.web.TraceContextFilter;
 import com.personal.finance.platform.web.TraceFilterConfiguration;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 
-@WebMvcTest(properties = "debug=false")
+@WebMvcTest(
+    properties = "debug=false",
+    excludeAutoConfiguration = UserDetailsServiceAutoConfiguration.class)
 @Import({
     ApiFoundationTest.TestOnlyController.class,
+    ApiFoundationTest.TestSecurityConfiguration.class,
     GlobalExceptionHandler.class,
+    ProblemDetailFactory.class,
     TraceFilterConfiguration.class
 })
 @ExtendWith(OutputCaptureExtension.class)
@@ -152,6 +163,28 @@ class ApiFoundationTest {
 
     @GetMapping("/__test/success")
     void succeed() {
+    }
+  }
+
+  @TestConfiguration(proxyBeanMethods = false)
+  static class TestSecurityConfiguration {
+
+    @Bean
+    SecurityFilterChain apiFoundationTestFilterChain(HttpSecurity http) throws Exception {
+      http
+          .csrf(csrf -> csrf.ignoringRequestMatchers("/__test/**"))
+          .authorizeHttpRequests(authorize -> authorize
+              .requestMatchers(
+                  "/__test/validation",
+                  "/__test/failure",
+                  "/__test/success")
+              .permitAll()
+              .anyRequest().denyAll())
+          .formLogin(AbstractHttpConfigurer::disable)
+          .httpBasic(AbstractHttpConfigurer::disable)
+          .logout(AbstractHttpConfigurer::disable)
+          .requestCache(AbstractHttpConfigurer::disable);
+      return http.build();
     }
   }
 

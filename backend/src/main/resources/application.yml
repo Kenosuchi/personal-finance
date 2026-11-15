@@ -35,3 +35,7 @@ logging:
   structured:
     format:
       console: logstash
+
+finance:
+  security:
+    allowed-origin: "http://localhost:4200"

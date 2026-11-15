@@ -52,6 +52,13 @@ browser-facing requests remain under `/api`.
 R0-003 verifies the request boundary with `HttpTestingController` and reviews this proxy
 configuration. Live frontend-to-backend and container proxy evidence belongs to R0-007/R0-008.
 
+At application startup, Angular performs one `GET /api/csrf` request through this same boundary.
+The backend sets the standard `XSRF-TOKEN` cookie, and Angular's built-in XSRF support copies it
+to the `X-XSRF-TOKEN` header on relative unsafe requests. Bootstrap failure rejects application
+initialization; it is not converted into readiness, retried automatically, or followed by a
+mutation request. No backend URL, token, credential, or secret is stored in frontend
+configuration.
+
 ## Manual shell check
 
 With the development server running:
